@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Watermark Remover</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Magic Watermark Remover</h1>
+        
+        <!-- Upload Section -->
+        <div id="uploadSection" class="upload-section">
+            <span class="upload-icon">📁</span>
+            <p class="upload-text">Drag & Drop a video or photo here</p>
+            <p class="upload-subtext">or click to browse files (MP4, JPEG, PNG)</p>
+            <input type="file" id="mediaUpload" accept="video/mp4, image/jpeg, image/png, image/webp" />
+        </div>
+
+        <!-- Editor Section -->
+        <div id="editorSection" style="display: none;">
+            <p style="text-align: center;">Draw a rectangle over the watermark or object you want to remove.</p>
+            
+            <div class="editor-layout">
+                <!-- Left Column: Media -->
+                <div class="video-container" id="videoContainer">
+                    <video id="videoPreview" controls style="display: none;"></video>
+                    <img id="imagePreview" style="display: none;" />
+                    <canvas id="drawCanvas"></canvas>
+                </div>
+                
+                <!-- Right Column: Settings -->
+                <div class="advanced-settings">
+                    <h3>Advanced Settings</h3>
+                    <div class="setting-group">
+                        <label for="algorithmSelect">Inpainting Method:</label>
+                        <select id="algorithmSelect">
+                            <option value="ns">Navier-Stokes (Textures)</option>
+                            <option value="telea">TELEA (Smooth gradients)</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="radiusRange">Inpaint Radius: <span id="radiusVal">7</span></label>
+                        <input type="range" id="radiusRange" min="1" max="30" value="7">
+                    </div>
+                    <div class="setting-group">
+                        <label for="inflationRange">Mask Inflation: <span id="inflationVal">10</span>px</label>
+                        <input type="range" id="inflationRange" min="0" max="50" value="10">
+                        <small>Increase to cover artifacts.</small>
+                    </div>
+                    <div class="setting-group">
+                        <label for="featherRange">Edge Feathering: <span id="featherVal">31</span></label>
+                        <input type="range" id="featherRange" min="1" max="99" step="2" value="31">
+                    </div>
+                    <div class="setting-group">
+                        <label for="smoothingRange">Temporal Smoothing: <span id="smoothingVal">0.3</span></label>
+                        <input type="range" id="smoothingRange" min="0" max="1" step="0.1" value="0.3">
+                        <small>Video only. Reduces flickering.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="clearBtn" class="btn secondary">Clear Selection</button>
+                <button id="processBtn" class="btn primary">Process Media</button>
+            </div>
+        </div>
+
+        <!-- Loading Section -->
+        <div id="loadingSection" style="display: none; text-align: center; margin-top: 40px;">
+            <h2 id="loadingText">Processing media, please wait...</h2>
+            <p>This runs entirely locally and may take a moment for larger files.</p>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div id="resultSection" style="display: none; text-align: center; margin-top: 40px;">
+            <h2>Success! 🎉</h2>
+            <p>Your file has been seamlessly repaired.</p>
+            
+            <div id="finalPreviewContainer" style="display: none; margin: 30px auto; max-width: 600px;">
+                <video id="finalVideoPreview" controls style="display: none; width: 100%; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);"></video>
+                <img id="finalImagePreview" style="display: none; width: 100%; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);" />
+            </div>
+            
+            <div class="controls" style="justify-content: center; margin-top: 30px;">
+                <button id="previewBtn" class="btn secondary">Preview Result</button>
+                <a id="downloadLink" href="#" class="btn primary" download>Download Cleaned File</a>
+            </div>
+            <div style="margin-top: 20px;">
+                <button id="startOverBtn" class="btn secondary" style="background: transparent; border: none; font-size: 0.9rem; padding: 0; text-decoration: underline;">Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
