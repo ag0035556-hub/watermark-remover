@@ -1,11 +1,6 @@
 // API Configuration
-// If you host the frontend and backend together, you can leave this empty (uses relative paths).
-// If you host them separately (e.g. Vercel for frontend, Render for backend), enter your Render URL here.
-const PRODUCTION_API_URL = 'https://your-backend.onrender.com';
-
-// Automatically detect if we are running locally (where FastAPI serves the frontend)
-const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-const API_URL = isLocal ? '' : PRODUCTION_API_URL;
+// Using relative paths since frontend and backend are hosted together on Render.
+const API_URL = '';
 
 const mediaUpload = document.getElementById('mediaUpload');
 const editorSection = document.getElementById('editorSection');
