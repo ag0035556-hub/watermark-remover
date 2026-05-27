@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment Variables
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Application Data
+uploads/
+processed/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
