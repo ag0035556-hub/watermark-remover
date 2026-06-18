@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 from starlette.background import BackgroundTask
 import mimetypes
+import subprocess
 
 app = FastAPI()
 
@@ -153,11 +154,11 @@ async def process_media(
     y: int = Form(...),
     width: int = Form(...),
     height: int = Form(...),
-    algorithm: str = Form("ns"),
-    radius: int = Form(7),
-    smoothing: float = Form(0.3),
-    inflation: int = Form(10),
-    feather: int = Form(31),
+    algorithm: str = Form("telea"),
+    radius: int = Form(15),
+    smoothing: float = Form(0.5),
+    inflation: int = Form(20),
+    feather: int = Form(45),
     is_video: str = Form(...)
 ):
     input_path = os.path.join(UPLOAD_DIR, file_id)
@@ -178,13 +179,17 @@ async def process_media(
         fps = cap.get(cv2.CAP_PROP_FPS)
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        # We need a temp path for the video without audio
+        temp_output_path = os.path.join(PROCESSED_DIR, f"temp_{output_filename}")
+        
         fourcc_h264 = cv2.VideoWriter_fourcc(*'avc1')
-        out = cv2.VideoWriter(output_path, fourcc_h264, fps, (frame_width, frame_height))
+        out = cv2.VideoWriter(temp_output_path, fourcc_h264, fps, (frame_width, frame_height))
         
         # If H264 is not supported by the system's OpenCV build, fallback to standard mp4v
         if not out.isOpened():
             fourcc_mp4v = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc_mp4v, fps, (frame_width, frame_height))
+            out = cv2.VideoWriter(temp_output_path, fourcc_mp4v, fps, (frame_width, frame_height))
             
         prev_roi = None
         while True:
@@ -196,6 +201,27 @@ async def process_media(
             
         cap.release()
         out.release()
+        
+        # Combine the processed video with original audio using ffmpeg
+        try:
+            subprocess.run([
+                "ffmpeg", "-y", 
+                "-i", temp_output_path, 
+                "-i", input_path, 
+                "-map", "0:v:0", 
+                "-map", "1:a:0?", 
+                "-c:v", "copy", 
+                "-c:a", "aac", 
+                output_path
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Clean up temp file
+            if os.path.exists(temp_output_path):
+                os.remove(temp_output_path)
+        except Exception as e:
+            # If ffmpeg fails, fallback to the silent video
+            if os.path.exists(temp_output_path):
+                os.rename(temp_output_path, output_path)
     else:
         # Process image (no temporal smoothing)
         img = cv2.imread(input_path)
