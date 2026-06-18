@@ -139,15 +139,19 @@ window.addEventListener('resize', () => {
 });
 
 // Drawing logic
-drawCanvas.addEventListener('mousedown', (e) => {
+// Prevent scrolling on touch devices
+drawCanvas.style.touchAction = 'none';
+
+drawCanvas.addEventListener('pointerdown', (e) => {
     const rectBounds = drawCanvas.getBoundingClientRect();
     startX = e.clientX - rectBounds.left;
     startY = e.clientY - rectBounds.top;
     isDrawing = true;
     hasRect = false;
+    drawCanvas.setPointerCapture(e.pointerId);
 });
 
-drawCanvas.addEventListener('mousemove', (e) => {
+drawCanvas.addEventListener('pointermove', (e) => {
     if (!isDrawing) return;
     
     const rectBounds = drawCanvas.getBoundingClientRect();
@@ -162,11 +166,17 @@ drawCanvas.addEventListener('mousemove', (e) => {
     drawRect();
 });
 
-drawCanvas.addEventListener('mouseup', () => {
+drawCanvas.addEventListener('pointerup', (e) => {
     isDrawing = false;
     if (rect.w > 0 && rect.h > 0) {
         hasRect = true;
     }
+    drawCanvas.releasePointerCapture(e.pointerId);
+});
+
+drawCanvas.addEventListener('pointercancel', (e) => {
+    isDrawing = false;
+    drawCanvas.releasePointerCapture(e.pointerId);
 });
 
 function drawRect() {
