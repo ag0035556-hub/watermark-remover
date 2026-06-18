@@ -202,7 +202,7 @@ async def process_media(
         cap.release()
         out.release()
         
-        # Combine the processed video with original audio using ffmpeg
+        # Combine the processed video with original audio using ffmpeg and re-encode for mobile compatibility
         try:
             subprocess.run([
                 "ffmpeg", "-y", 
@@ -210,8 +210,12 @@ async def process_media(
                 "-i", input_path, 
                 "-map", "0:v:0", 
                 "-map", "1:a:0?", 
-                "-c:v", "copy", 
+                "-c:v", "libx264", 
+                "-preset", "fast",
+                "-pix_fmt", "yuv420p",
                 "-c:a", "aac", 
+                "-b:a", "128k",
+                "-movflags", "+faststart",
                 output_path
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
