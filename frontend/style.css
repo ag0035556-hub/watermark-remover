@@ -66,28 +66,22 @@ body::after {
 }
 
 .container {
-    background: var(--panel-bg);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--panel-border);
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
     padding: 48px;
     border-radius: var(--radius-lg);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), var(--shadow-glow);
+    box-shadow: none;
     width: 100%;
     max-width: 950px;
     position: relative;
+    z-index: 10;
 }
 
-/* Subtle top highlight for the glass card */
-.container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+/* Add a strong text shadow to all typography so it is legible over the complex background */
+h1, h2, h3, p, label, .upload-text, .upload-subtext {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.9);
 }
 
 h1 {
@@ -96,11 +90,10 @@ h1 {
     font-size: 2.8rem;
     text-align: center;
     margin-bottom: 40px;
-    /* Vibrant text gradient */
     background: linear-gradient(135deg, #a78bfa, #60a5fa, #f472b6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,1));
 }
 
 h2, h3 {
@@ -117,8 +110,8 @@ p {
 .upload-section {
     position: relative;
     padding: 60px 20px;
-    background: rgba(15, 23, 42, 0.3);
-    border: 2px dashed rgba(148, 163, 184, 0.3);
+    background: transparent;
+    border: 2px dashed rgba(255, 255, 255, 0.4);
     border-radius: var(--radius-md);
     text-align: center;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -128,8 +121,9 @@ p {
 
 .upload-section:hover, .upload-section.dragover {
     border-color: var(--accent-2);
-    background: rgba(59, 130, 246, 0.05);
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.1) inset;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.2) inset;
     transform: translateY(-2px);
 }
 
