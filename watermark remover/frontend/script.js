@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:8000'; // IMPORTANT: Change this to your actual Render URL before deploying to Vercel!
+const API_URL = 'https://watermark-remover-gt3d.onrender.com'; // IMPORTANT: Change this to your actual Render URL before deploying to Vercel!
 
 const mediaUpload = document.getElementById('mediaUpload');
 const editorSection = document.getElementById('editorSection');

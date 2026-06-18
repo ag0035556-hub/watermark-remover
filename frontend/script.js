@@ -1,6 +1,6 @@
 // API Configuration
 // Using relative paths since frontend and backend are hosted together on Render.
-const API_URL = '';
+const API_URL = 'https://watermark-remover-gt3d.onrender.com';
 
 const mediaUpload = document.getElementById('mediaUpload');
 const editorSection = document.getElementById('editorSection');
