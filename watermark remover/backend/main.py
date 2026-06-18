@@ -31,7 +31,7 @@ os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.0, prev_roi=None, inflation=10, feather=31):
     if width <= 0 or height <= 0:
-        return frame, prev_roi, 0.0
+        return frame, None, prev_roi, 0.0
         
     frame_height, frame_width = frame.shape[:2]
     
@@ -41,7 +41,7 @@ def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.
     y2 = min(frame_height, y + height)
     
     if x2 <= x1 or y2 <= y1:
-        return frame, prev_roi, 0.0
+        return frame, None, prev_roi, 0.0
         
     # Expand the ROI to give inpainting surrounding context
     margin = 25
@@ -103,8 +103,9 @@ def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.
     blended_roi = roi_expanded.astype(np.float32) * (1.0 - soft_mask_3c) + inpainted_with_noise.astype(np.float32) * soft_mask_3c
     
     # Put the blended ROI back into the frame
-    frame[ey1:ey2, ex1:ex2] = blended_roi.astype(np.uint8)
-    return frame, current_inpainted_roi, inpaint_time
+    blended_uint8 = blended_roi.astype(np.uint8)
+    frame[ey1:ey2, ex1:ex2] = blended_uint8
+    return frame, blended_uint8, current_inpainted_roi, inpaint_time
 
 MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
 
@@ -178,6 +179,9 @@ async def process_media(
     output_path = os.path.join(PROCESSED_DIR, output_filename)
     
     if is_video_bool:
+        if width <= 0 or height <= 0:
+            return {"error": "Invalid watermark region"}
+            
         # Process video with OpenCV
         cap = cv2.VideoCapture(input_path)
         if not cap.isOpened():
@@ -187,16 +191,29 @@ async def process_media(
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(frame_width, x + width)
+        y2 = min(frame_height, y + height)
+        margin = 25
+        ex1 = max(0, x1 - margin)
+        ey1 = max(0, y1 - margin)
+        ex2 = min(frame_width, x2 + margin)
+        ey2 = min(frame_height, y2 + margin)
+        
+        roi_width = ex2 - ex1
+        roi_height = ey2 - ey1
+        
         # We need a temp path for the video without audio
         temp_output_path = os.path.join(PROCESSED_DIR, f"temp_{output_filename}")
         
         fourcc_h264 = cv2.VideoWriter_fourcc(*'avc1')
-        out = cv2.VideoWriter(temp_output_path, fourcc_h264, fps, (frame_width, frame_height))
+        out = cv2.VideoWriter(temp_output_path, fourcc_h264, fps, (roi_width, roi_height))
         
         # If H264 is not supported by the system's OpenCV build, fallback to standard mp4v
         if not out.isOpened():
             fourcc_mp4v = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(temp_output_path, fourcc_mp4v, fps, (frame_width, frame_height))
+            out = cv2.VideoWriter(temp_output_path, fourcc_mp4v, fps, (roi_width, roi_height))
             
         prev_roi = None
         while True:
@@ -204,9 +221,10 @@ async def process_media(
             if not ret:
                 break
             frame_start_time = time.time()
-            frame, prev_roi, inpaint_time = process_frame(frame, x, y, width, height, algorithm, radius, smoothing, prev_roi, inflation, feather)
+            frame, blended_roi, prev_roi, inpaint_time = process_frame(frame, x, y, width, height, algorithm, radius, smoothing, prev_roi, inflation, feather)
             total_inpaint_time += inpaint_time
-            out.write(frame)
+            if blended_roi is not None:
+                out.write(blended_roi)
             total_frame_processing_time += (time.time() - frame_start_time)
             
         cap.release()
@@ -217,10 +235,11 @@ async def process_media(
         try:
             subprocess.run([
                 "ffmpeg", "-y", 
-                "-i", temp_output_path, 
                 "-i", input_path, 
-                "-map", "0:v:0", 
-                "-map", "1:a:0?", 
+                "-i", temp_output_path, 
+                "-filter_complex", f"[0:v][1:v]overlay={ex1}:{ey1}[outv]", 
+                "-map", "[outv]", 
+                "-map", "0:a:0?", 
                 "-c:v", "libx264", 
                 "-preset", "ultrafast",
                 "-crf", "28",
@@ -245,7 +264,7 @@ async def process_media(
         if img is None:
             return {"error": "Could not open image"}
         frame_start_time = time.time()
-        img, _, inpaint_time = process_frame(img, x, y, width, height, algorithm, radius, 0.0, None, inflation, feather)
+        img, _, _, inpaint_time = process_frame(img, x, y, width, height, algorithm, radius, 0.0, None, inflation, feather)
         total_inpaint_time += inpaint_time
         cv2.imwrite(output_path, img)
         total_frame_processing_time += (time.time() - frame_start_time)
