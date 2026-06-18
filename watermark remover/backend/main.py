@@ -287,6 +287,56 @@ def delete_file(path: str):
     if os.path.exists(path):
         os.remove(path)
 
+@app.get("/auto_detect_logo/{file_id}")
+async def auto_detect_logo(file_id: str):
+    input_path = os.path.join(UPLOAD_DIR, file_id)
+    if not os.path.exists(input_path):
+        return {"error": "File not found"}
+        
+    template_path = os.path.join(os.path.dirname(__file__), "gemini_logo.png")
+    if not os.path.exists(template_path):
+        return {"error": "Template logo not found on server"}
+        
+    # Read template
+    template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+    if template is None:
+        return {"error": "Could not read template logo"}
+    
+    tw, th = template.shape[::-1]
+    
+    # Read first frame of media
+    mime_type, _ = mimetypes.guess_type(input_path)
+    if mime_type and mime_type.startswith("video"):
+        cap = cv2.VideoCapture(input_path)
+        ret, frame = cap.read()
+        cap.release()
+        if not ret:
+            return {"error": "Could not read video frame"}
+    else:
+        frame = cv2.imread(input_path)
+        if frame is None:
+            return {"error": "Could not read image"}
+            
+    # Convert frame to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    # Template matching
+    res = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    
+    if max_val < 0.2: # Low confidence threshold just in case
+        return {"error": "Logo not detected with high confidence"}
+        
+    x, y = max_loc
+    return {
+        "status": "success",
+        "x": x,
+        "y": y,
+        "width": tw,
+        "height": th,
+        "confidence": float(max_val)
+    }
+
 @app.get("/download/{file_id}")
 async def download_media(file_id: str):
     file_path = os.path.join(PROCESSED_DIR, file_id)

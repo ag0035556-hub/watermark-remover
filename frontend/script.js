@@ -9,6 +9,7 @@ const imagePreview = document.getElementById('imagePreview');
 const drawCanvas = document.getElementById('drawCanvas');
 const ctx = drawCanvas.getContext('2d');
 const clearBtn = document.getElementById('clearBtn');
+const autoDetectBtn = document.getElementById('autoDetectBtn');
 const processBtn = document.getElementById('processBtn');
 const loadingSection = document.getElementById('loadingSection');
 const resultSection = document.getElementById('resultSection');
@@ -210,6 +211,46 @@ clearBtn.addEventListener('click', () => {
     rect = { x: 0, y: 0, w: 0, h: 0 };
     hasRect = false;
     ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+});
+
+autoDetectBtn.addEventListener('click', async () => {
+    if (!currentFileId) return alert('Please upload a file first');
+    
+    autoDetectBtn.disabled = true;
+    const originalText = autoDetectBtn.innerText;
+    autoDetectBtn.innerText = 'Detecting...';
+    
+    try {
+        const res = await fetch(`${API_URL}/auto_detect_logo/${currentFileId}`);
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            let scaleX, scaleY;
+            if (isVideo) {
+                scaleX = videoPreview.videoWidth / drawCanvas.width;
+                scaleY = videoPreview.videoHeight / drawCanvas.height;
+            } else {
+                scaleX = imagePreview.naturalWidth / drawCanvas.width;
+                scaleY = imagePreview.naturalHeight / drawCanvas.height;
+            }
+            
+            rect = {
+                x: data.x / scaleX,
+                y: data.y / scaleY,
+                w: data.width / scaleX,
+                h: data.height / scaleY
+            };
+            hasRect = true;
+            drawRect();
+        } else {
+            alert(data.error || 'Failed to detect logo.');
+        }
+    } catch (err) {
+        alert('An error occurred during auto-detection.');
+    } finally {
+        autoDetectBtn.disabled = false;
+        autoDetectBtn.innerText = originalText;
+    }
 });
 
 // Process media
