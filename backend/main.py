@@ -31,7 +31,7 @@ os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.0, prev_roi=None, inflation=10, feather=31):
     if width <= 0 or height <= 0:
-        return frame, prev_roi
+        return frame, prev_roi, 0.0
         
     frame_height, frame_width = frame.shape[:2]
     
@@ -41,7 +41,7 @@ def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.
     y2 = min(frame_height, y + height)
     
     if x2 <= x1 or y2 <= y1:
-        return frame, prev_roi
+        return frame, prev_roi, 0.0
         
     # Expand the ROI to give inpainting surrounding context
     margin = 25
@@ -69,8 +69,10 @@ def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.
     mix2 = min(roi_expanded.shape[1], ix2 + inflation)
     mask[miy1:miy2, mix1:mix2] = 255
     # Perform inpainting using the selected algorithm
+    inpaint_start = time.time()
     inpaint_flag = cv2.INPAINT_TELEA if algorithm == "telea" else cv2.INPAINT_NS
     inpainted_roi = cv2.inpaint(roi_expanded, mask, inpaintRadius=radius, flags=inpaint_flag)
+    inpaint_time = time.time() - inpaint_start
     
     # Temporal smoothing to reduce flickering (only applied to video frames)
     if prev_roi is not None and alpha > 0.0 and prev_roi.shape == inpainted_roi.shape:
@@ -102,7 +104,7 @@ def process_frame(frame, x, y, width, height, algorithm="ns", radius=7, alpha=0.
     
     # Put the blended ROI back into the frame
     frame[ey1:ey2, ex1:ex2] = blended_roi.astype(np.uint8)
-    return frame, current_inpainted_roi
+    return frame, current_inpainted_roi, inpaint_time
 
 MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
 
@@ -161,6 +163,11 @@ async def process_media(
     feather: int = Form(45),
     is_video: str = Form(...)
 ):
+    total_start_time = time.time()
+    total_inpaint_time = 0.0
+    total_frame_processing_time = 0.0
+    ffmpeg_time = 0.0
+    
     input_path = os.path.join(UPLOAD_DIR, file_id)
     if not os.path.exists(input_path):
         return {"error": "File not found"}
@@ -196,13 +203,17 @@ async def process_media(
             ret, frame = cap.read()
             if not ret:
                 break
-            frame, prev_roi = process_frame(frame, x, y, width, height, algorithm, radius, smoothing, prev_roi, inflation, feather)
+            frame_start_time = time.time()
+            frame, prev_roi, inpaint_time = process_frame(frame, x, y, width, height, algorithm, radius, smoothing, prev_roi, inflation, feather)
+            total_inpaint_time += inpaint_time
             out.write(frame)
+            total_frame_processing_time += (time.time() - frame_start_time)
             
         cap.release()
         out.release()
         
         # Combine the processed video with original audio using ffmpeg and re-encode for mobile compatibility
+        ffmpeg_start_time = time.time()
         try:
             subprocess.run([
                 "ffmpeg", "-y", 
@@ -226,17 +237,29 @@ async def process_media(
             # If ffmpeg fails, fallback to the silent video
             if os.path.exists(temp_output_path):
                 os.rename(temp_output_path, output_path)
+        ffmpeg_time = time.time() - ffmpeg_start_time
     else:
         # Process image (no temporal smoothing)
         img = cv2.imread(input_path)
         if img is None:
             return {"error": "Could not open image"}
-        img, _ = process_frame(img, x, y, width, height, algorithm, radius, 0.0, None, inflation, feather)
+        frame_start_time = time.time()
+        img, _, inpaint_time = process_frame(img, x, y, width, height, algorithm, radius, 0.0, None, inflation, feather)
+        total_inpaint_time += inpaint_time
         cv2.imwrite(output_path, img)
+        total_frame_processing_time += (time.time() - frame_start_time)
         
     # Auto-delete the input file to save disk space
     if os.path.exists(input_path):
         os.remove(input_path)
+        
+    print("\n" + "="*40)
+    print("TIMING LOGS:")
+    print(f"  Watermark removal time: {total_inpaint_time:.3f}s")
+    print(f"  Frame processing time:  {total_frame_processing_time:.3f}s")
+    print(f"  FFmpeg encoding time:   {ffmpeg_time:.3f}s")
+    print(f"  Total processing time:  {(time.time() - total_start_time):.3f}s")
+    print("="*40 + "\n")
     
     return {"status": "success", "download_url": f"/download/{output_filename}"}
 
